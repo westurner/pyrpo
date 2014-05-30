@@ -4,5 +4,5 @@
 License
 =========
 
-.. include:: ../LICENSE.psf
+.. include:: ../LICENSE
 

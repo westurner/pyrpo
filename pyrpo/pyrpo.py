@@ -1667,16 +1667,16 @@ def do_tortoisehg_report(repos, output):
     print(ET.dump(root), file=output)
 
 
-def main():
+def get_option_parser():
     """
-    pyrpo.main: parse commandline options with optparse and run specified
-    reports
+    Build an ``optparse.OptionParser`` for pyrpo commandline use
     """
-
     import optparse
-    import logging
 
-    prs = optparse.OptionParser(usage="./")
+    prs = optparse.OptionParser(
+        usage=(
+            "$0 pyrpo [-h] [-v] [-q] [-s .] "
+            "[-r <pip||full|status|hgsub|thg>] [--thg]"))
 
     prs.add_option('-s', '--scan',
                    dest='scan',
@@ -1706,6 +1706,18 @@ def main():
                    dest='quiet',
                    action='store_true',)
 
+    return prs
+
+
+def main():
+    """
+    pyrpo.main: parse commandline options with optparse and run specified
+    reports
+    """
+
+    import logging
+
+    prs = get_option_parser()
     (opts, args) = prs.parse_args()
 
     if not opts.quiet:

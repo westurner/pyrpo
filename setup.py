@@ -75,7 +75,7 @@ install_requires = [
 
 setup(
     name='pyrpo',
-    version='0.1.2',
+    version='0.1.3',
     description=(
         'A shell command wrapper for hg, git, bzr, svn'),
     long_description=build_long_description(),
@@ -94,7 +94,7 @@ setup(
     zip_safe=False,
     keywords='pyrpo hg git bzr svn',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',

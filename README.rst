@@ -22,7 +22,7 @@ pyrpo
 .. .. image:: https://travis-ci.org/westurner/pyrpo.png?branch=master
 ..       :target: https://travis-ci.org/westurner/pyrpo
 
-.. image:: http::/img.shields.io/travis/westurner/pyrpo/master.svg
+.. image:: http://img.shields.io/travis/westurner/pyrpo/master.svg
         :target: https://travis-ci.org/westurner/pyrpo
 
 

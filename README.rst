@@ -11,13 +11,20 @@ pyrpo
 
 
 .. image:: http://img.shields.io/pypi/v/pyrpo.svg
-       :target: https://pypi.python.org/pypi/pyrpo
+        :target: https://pypi.python.org/pypi/pyrpo
 
-.. image:: http://img.shields.io/github/release/westurner/pyrpo.svg
-        :target: https://github.com/westurner/pyrpo/releases
+.. image:: http://img.shields.io/pypi/dm/pyrpo.svg
+        :target: https://warehouse.python.org/project/pyrpo/
 
-.. image:: https://travis-ci.org/westurner/pyrpo.png?branch=master
-       :target: https://travis-ci.org/westurner/pyrpo
+.. .. image:: http://img.shields.io/github/release/westurner/pyrpo.svg
+..         :target: https://github.com/westurner/pyrpo/releases
+..
+.. .. image:: https://travis-ci.org/westurner/pyrpo.png?branch=master
+..       :target: https://travis-ci.org/westurner/pyrpo
+
+.. image:: http::/img.shields.io/travis/westurner/pyrpo/master.svg
+        :target: https://travis-ci.org/westurner/pyrpo
+
 
 .. _GitHub: https://github.com/westurner/pyrpo
 .. _PyPi: https://pypi.python.org/pypi/pyrpo

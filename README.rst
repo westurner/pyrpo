@@ -10,14 +10,14 @@ pyrpo
 `Travis-CI`_
 
 
-.. image:: https://badge.fury.io/py/pyrpo.png
-   :target: http://badge.fury.io/py/pyrpo
-    
-.. image:: https://travis-ci.org/westurner/pyrpo.png?branch=master
-        :target: https://travis-ci.org/westurner/pyrpo
-
-.. image:: https://pypip.in/d/pyrpo/badge.png
+.. image:: http://img.shields.io/pypi/v/pyrpo.svg
        :target: https://pypi.python.org/pypi/pyrpo
+
+.. image:: http://img.shields.io/github/release/westurner/pyrpo.svg
+        :target: https://github.com/westurner/pyrpo/releases
+
+.. image:: https://travis-ci.org/westurner/pyrpo.png?branch=master
+       :target: https://travis-ci.org/westurner/pyrpo
 
 .. _GitHub: https://github.com/westurner/pyrpo
 .. _PyPi: https://pypi.python.org/pypi/pyrpo
@@ -94,9 +94,9 @@ Generate an `.hgsubs` file::
 
     pyrpo -r hgsub
 
-Generate a ``.gitsubmodule`` file::
+Generate a ``.gitmodules`` file::
 
-    pyrpo -r gitsubmodule
+    pyrpo -r gitbmodule
 
 Generate an origin report::
 

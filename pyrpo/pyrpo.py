@@ -480,17 +480,17 @@ class Repository(object):
             self.label,
             self.remote_url)
 
-    def gitsubmodule_report(self):
+    def gitmodule_report(self):
         """
         Yields:
-            str: .gitsubmodules line for this repository
+            str: .gitmodules configuration lines for this repository
         """
         fpath = self.relpath
         if fpath == '.':
             return
         yield '[submodule "%s"]' % fpath.replace(os.path.sep, '_')
-        yield "path = %s" % fpath
-        yield "url = %s" % self.remote_url
+        yield "    path = %s" % fpath
+        yield "    url = %s" % self.remote_url
         yield ""
 
     def __unicode__(self):
@@ -1581,7 +1581,7 @@ REPORT_TYPES = dict(
         "pip",
         "status",
         "hgsub",
-        "gitsubmodule",
+        "gitmodule",
     )
 )
 

@@ -197,6 +197,10 @@ class Repository(object):
     fields = []
     clone_cmd = 'clone'
 
+    @staticmethod
+    def checkout_cmd(rev="tip"):
+        return 'checkout -r %s' % rev
+
     def __init__(self, fpath):
         """
         Create a new Repository instance
@@ -342,7 +346,7 @@ class Repository(object):
         op = self.log(n=maxentries, template=template, **kwargs)
         if not op:
             return
-        print(op)
+        log.debug(op)
         for l in itersplit(op, self.lsep):
             l = l.strip()
             if not l:
@@ -426,6 +430,51 @@ class Repository(object):
         ])
 
         yield ' '.join(output)
+
+    def sh_rev_report(self):
+        """
+        Show shell command necessary to clone this repository
+
+        If there is no primary remote url, prefix-comment the command
+
+        Yields:
+            str: shell command necessary to clone this repository
+        """
+        output = []
+
+        # comment entries with no remote url
+        if not self.remote_url:
+            output.append('#')
+
+        # try to get the current revision id
+        try:
+            current_id = self.current_id
+            last_commit = self.last_commit
+        except Exception as e:
+            current_id = ""
+            last_commit = ""
+            e
+            pass
+
+        output.extend([
+            self.label,
+            self.clone_cmd,
+            '--',
+            repr(self.remote_url),  # TODO: shell quote?
+            repr(self.relpath),
+            ';',
+            'cd',
+            self.relpath,
+            ';',
+            self.label,
+            self.checkout_cmd(rev=current_id),
+            #' #|# ',
+            #getattr(last_commit, 'tags', '').strip()[1:-1],
+            ' #|# ',
+            str(last_commit),
+            '\n'
+        ])
+        yield unicode(' ').join(output)
 
     def pip_report(self):
         """
@@ -852,6 +901,10 @@ class GitRepository(Repository):
         DEFAULT_LSEP)
     )
 
+    @staticmethod
+    def checkout_cmd(rev="master"):
+        return 'checkout %s' % rev
+
     @property
     def unique_id(self):
         """
@@ -1035,6 +1088,10 @@ class BzrRepository(Repository):
     logrgx = re.compile(
         r'^(revno|tags|committer|branch\snick|timestamp|message):\s?(.*)\n?')
     clone_cmd = 'branch'
+
+    @staticmethod
+    def checkout_cmd(rev="trunk"):
+        return 'checkout %s' % rev
 
     @property
     def unique_id(self):
@@ -1243,6 +1300,10 @@ class SvnRepository(Repository):
     )
     # def preparse(self, s):
     # return s# s.replace('\n\n',self.fsep,1)
+
+    @staticmethod
+    def checkout_cmd(rev="trunk"):
+        return 'checkout %s' % rev
 
     @cached_property
     def unique_id(self):
@@ -1576,6 +1637,7 @@ REPORT_TYPES = dict(
     (attr, getattr(Repository, "%s_report" % attr)) for attr in (
         "str",
         "sh",
+        "sh_rev",
         "origin",
         "full",
         "pip",

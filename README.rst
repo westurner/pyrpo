@@ -103,7 +103,7 @@ Generate an `.hgsubs` file::
 
 Generate a ``.gitmodules`` file::
 
-    pyrpo -r gitbmodule
+    pyrpo -r gitmodule
 
 Generate an origin report::
 

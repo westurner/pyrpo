@@ -6,7 +6,7 @@ pyrpo
 `GitHub`_ |
 `PyPi`_ |
 `Warehouse`_ |
-`ReadTheDocs`_ |
+`Documentation`_ |
 `Travis-CI`_
 
 
@@ -16,9 +16,9 @@ pyrpo
 .. image:: http://img.shields.io/pypi/dm/pyrpo.svg
         :target: https://warehouse.python.org/project/pyrpo/
 
-.. .. image:: http://img.shields.io/github/release/westurner/pyrpo.svg
-..         :target: https://github.com/westurner/pyrpo/releases
-..
+.. image:: http://img.shields.io/github/release/westurner/pyrpo.svg
+        :target: https://github.com/westurner/pyrpo/releases
+
 .. .. image:: https://travis-ci.org/westurner/pyrpo.png?branch=master
 ..       :target: https://travis-ci.org/westurner/pyrpo
 
@@ -29,10 +29,11 @@ pyrpo
 .. _GitHub: https://github.com/westurner/pyrpo
 .. _PyPi: https://pypi.python.org/pypi/pyrpo
 .. _Warehouse: https://warehouse.python.org/project/pyrpo
-.. _ReadTheDocs:  https://pyrpo.readthedocs.org/en/latest
+.. _Documentation:  https://pyrpo.readthedocs.org/en/latest
 .. _Travis-CI:  https://travis-ci.org/westurner/pyrpo
 
 pyrpo: a shell command wrapper for hg, git, bzr, svn
+
 
 Features
 ==========

@@ -1842,7 +1842,7 @@ def get_option_parser():
     prs = optparse.OptionParser(
         usage=(
             "$0 pyrpo [-h] [-v] [-q] [-s .] "
-            "[-r <pip||full|status|hgsub|thg>] [--thg]"))
+            "[-r <report>] [--thg]"))
 
     prs.add_option('-s', '--scan',
                    dest='scan',
@@ -1854,7 +1854,7 @@ def get_option_parser():
                    dest='reports',
                    action='append',
                    default=[],
-                   help='pip || full || status || hgsub || thg')
+                   help='origin, status, full, gitmodule, json, sh, str, pip, hgsub')
     prs.add_option('--thg',
                    dest='thg_report',
                    action='store_true',

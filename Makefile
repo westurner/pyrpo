@@ -80,7 +80,7 @@ dist: clean
 	ls -l dist
 
 twine:
-	twine -v upload ./dist/*
+	twine upload ./dist/*
 
 docs_rsync_to_local:
 	rsync -avr ./docs/_build/html/ $(_DOCSHTML)/pyrpo

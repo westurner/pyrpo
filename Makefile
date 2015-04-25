@@ -88,3 +88,7 @@ docs_rsync_to_local:
 docs_rebuild:
 	$(MAKE) docs
 	$(MAKE) docs_rsync_to_local
+
+open:
+	x-www-browser docs/_build/html/index.html
+	#x-www-browser docs/_build/singlehtml/index.html

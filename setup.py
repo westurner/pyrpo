@@ -13,9 +13,10 @@ try:
 except ImportError:
     from distutils.core import setup, Command
 
+EGGNAME = 'pyrpo'
 CONFIG = {
     'debug': True,
-    'logname': None,
+    'logname': '%s.setup.py' % EGGNAME,
     'logformat': '%(asctime)s %(name)s %(levelname)-5s %(message)s',
     'loglevel': logging.DEBUG,  # logging.INFO
 }
@@ -24,8 +25,8 @@ logging.basicConfig(format=CONFIG['logformat'])
 log = logging.getLogger(CONFIG['logname'])
 log.setLevel(CONFIG['loglevel'])
 
-SETUPPY_PATH = os.path.dirname(os.path.abspath(__file__)) or '.'
-log.debug('SETUPPY_PATH: %s' % SETUPPY_PATH)
+SETUPPY_PATH = os.path.dirname(os.path.abspath(__file__))
+# log.debug('SETUPPY_PATH: %s' % SETUPPY_PATH)
 
 
 if sys.argv[-1] == 'publish':
@@ -73,9 +74,10 @@ install_requires = [
     'python-dateutil',
 ]
 
+
 setup(
     name='pyrpo',
-    version='0.1.6',
+    version='0.2.0',
     description=(
         'A shell command wrapper for hg, git, bzr, svn'),
     long_description=build_long_description(),

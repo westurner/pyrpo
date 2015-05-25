@@ -29,6 +29,7 @@ lint:
 
 test:
 	python setup.py test
+	nosetests ./pyrpo/pyrpo.py
 
 test-all:
 	tox
@@ -89,6 +90,15 @@ docs_rebuild:
 	$(MAKE) docs
 	$(MAKE) docs_rsync_to_local
 
+BROWSERCMD?=$(shell which web)
+BROWSERCMD?=$(shell which x-www-browser)
+BROWSERCMD?=$(shell which open)
 open:
-	x-www-browser docs/_build/html/index.html
-	#x-www-browser docs/_build/singlehtml/index.html
+	$(BROWSERCMD) docs/_build/html/index.html
+	#$(BROWSERCMD) docs/_build/singlehtml/index.html
+
+pull:
+	git pull
+
+push:
+	git push

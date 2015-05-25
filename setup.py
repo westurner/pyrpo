@@ -77,7 +77,7 @@ install_requires = [
 
 setup(
     name='pyrpo',
-    version='0.2.0',
+    version='0.2.1',
     description=(
         'A shell command wrapper for hg, git, bzr, svn'),
     long_description=build_long_description(),

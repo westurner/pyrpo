@@ -12,6 +12,7 @@ import pprint
 import re
 import subprocess
 import sys
+
 from collections import deque, namedtuple
 from distutils.util import convert_path
 from itertools import chain, imap, izip_longest
@@ -29,7 +30,7 @@ except ImportError as e:
 #     print(kwargs)
 
 # logging.basicConfig()
-log = logging.getLogger('repos')
+log = logging.getLogger('pyrpo')
 
 
 def dtformat(time):
@@ -420,7 +421,7 @@ class Repository(object):
         """
         # self.overwrite_hg_paths(output)
         if self.cfg_file:
-            yield "echo >> %s << _EOF_" % self.cfg_file
+            yield "cat > %r << _EOF_" % self.cfg_file
             yield self.read_cfg_file()
             yield "_EOF_"
 

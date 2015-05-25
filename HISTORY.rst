@@ -3,6 +3,18 @@
 History
 =========
 
+::
+
+    git log --format='* %s [%h]' master..develop
+    # [ ... ]
+
+0.2.1 (2015-05-24)
++++++++++++++++++++
+* BUG: pyrpo.py: sh_full report: ``cat > %r << EOF`` [91d5fb7]
+* BUG,CLN: pyrpo.py: logname='pyrpo' [e029abe]
+* BLD: Makefile: pull, push, BROWSERCMD lookups [59cbc66]
+* BLD: Makefile: twine [d636e15]
+
 0.2.0 (2015-04-25)
 +++++++++++++++++++
 * Development: https://github.com/westurner/pyrpo/commits/develop

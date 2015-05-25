@@ -421,7 +421,7 @@ class Repository(object):
         """
         # self.overwrite_hg_paths(output)
         if self.cfg_file:
-            yield "echo >> %s << _EOF_" % self.cfg_file
+            yield "cat > %r << _EOF_" % self.cfg_file
             yield self.read_cfg_file()
             yield "_EOF_"
 

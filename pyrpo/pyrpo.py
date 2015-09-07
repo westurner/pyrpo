@@ -3,6 +3,7 @@
 from __future__ import print_function
 """Search for code repositories and generate reports"""
 
+import codecs
 import datetime
 import errno
 import json
@@ -176,8 +177,9 @@ def sh(cmd, ignore_error=False, cwd=None, *args, **kwargs):
     p = subprocess.Popen(cmd, **kwargs)
     p_stdout = p.communicate()[0]
     if p.returncode and not ignore_error:
-        raise Exception("Subprocess return code: %d\n%r\n%r" % (
-            p.returncode, cmd, p_stdout))
+        raise subprocess.CalledProcessError(
+            "Subprocess return code: %d\n%r\n%r" % (
+                p.returncode, cmd, p_stdout))
     return p_stdout
 
 
@@ -677,7 +679,7 @@ class Repository(object):
         return None
 
     def read_cfg_file(self):
-        with open(self.cfg_file, 'r') as f:
+        with codecs.open(self.cfg_file, 'r', 'utf8') as f:
             return f.read()
 
 
@@ -1155,7 +1157,24 @@ class GitRepository(Repository):
 
     @property
     def cfg_file(self):
-        return os.path.join(self.relpath, '.git', 'config')
+        default_path = os.path.join(self.relpath, '.git', 'config')
+        if os.path.exists(default_path):
+            return default_path
+
+        gitdir = os.path.join(self.relpath, '.git')
+        cfg_path = None
+        # with git submodules, .git is a file containing "gitdir: .../../path"
+        if os.path.isfile(gitdir):
+            with codecs.open(gitdir, 'r', encoding='utf8') as f:
+                for _line in f:
+                    l = _line.strip()
+                    if l.startswith('gitdir:'):
+                        cfg_path_relative = l.split('gitdir:', 1)[-1].strip()
+                        cfg_path = os.path.abspath(
+                            os.path.join(gitdir, cfg_path_relative, 'config'))
+                        # TODO: absolute/relative path
+                        break
+        return cfg_path
 
 
 class BzrRepository(Repository):
@@ -1641,8 +1660,8 @@ def listdir_find_repos(where):
         try:
             for name in sorted(os.listdir(where), reverse=True):
                 fn = os.path.join(where, name)
-                if os.path.isdir(fn):
-                    if name in REPO_PREFIXES:
+                if name in REPO_PREFIXES:
+                    if 1:  # os.path.exists(fn):
                         # yield name[1:], fn.rstrip(name)[:-1] # abspath
                         repo = REPO_PREFIXES[name](fn.rstrip(name)[:-1])
                         yield repo
@@ -1666,21 +1685,21 @@ def find_find_repos(where, ignore_error=True):
     Yields:
         Repository subclass instance
     """
+    print(REPO_REGEX)
+    FIND_REPO_REGEXCMD = " -regex '.*(%s)$'" % REPO_REGEX
     if os.uname()[0] == 'Darwin':
         cmd = ("find",
                " -E",
                '-L',  # dereference symlinks
                repr(where),
-               ' -type d',
-               " -regex '.*(%s)$'" % REPO_REGEX)
+               FIND_REPO_REGEXCMD)
     else:
         cmd = ("find",
                " -O3 ",
                '-L',  # dereference symlinks
                repr(where),  # " .",
-               " -type d",
                " -regextype posix-egrep",
-               " -regex '.*(%s)$'" % REPO_REGEX)
+               FIND_REPO_REGEXCMD)
     cmd = ' '.join(cmd)
     log.debug("find_find_repos(%r) = %s" % (where, cmd))
     kwargs = {
@@ -1855,7 +1874,8 @@ def get_option_parser():
                    dest='reports',
                    action='append',
                    default=[],
-                   help='origin, status, full, gitmodule, json, sh, str, pip, hgsub')
+                   help=("""origin, status, full, gitmodule, json, sh, """
+                         """str, pip, hgsub"""))
     prs.add_option('--thg',
                    dest='thg_report',
                    action='store_true',
@@ -1934,6 +1954,7 @@ def main():
             list(do_repo_report(
                 find_unique_repos(opts.scan),
                 report='sh'))
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -84,7 +84,7 @@ setup(
     author='Wes Turner',
     author_email='wes@wrd.nu',
     url='https://github.com/westurner/pyrpo',
-    download_url='https://github.com/westurner/pyrpo/releases',
+    # download_url='https://github.com/westurner/pyrpo/releases',
     packages=[
         'pyrpo',
     ],

@@ -1100,7 +1100,8 @@ class GitRepository(Repository):
             str: primary remote url for this Repository
                 (``git config -l | grep "url"``)
         """
-        return self.sh('git config -l | grep "url"',
+        cmd = 'git config -l | grep "url"'
+        return self.sh(cmd,
                        shell=True,
                        ignore_error=True).strip()  # .split('=',1)[1]# *
 
@@ -1527,7 +1528,8 @@ class SvnRepository(Repository):
         Returns:
             str: Repository UUID of this repository
         """
-        cmdo = self.sh('svn info | grep "^Repository UUID"',
+        cmd = 'svn info | grep "^Repository UUID"'
+        cmdo = self.sh(cmd,
                        shell=True,
                        ignore_error=True)
         if cmdo:
@@ -1554,9 +1556,9 @@ class SvnRepository(Repository):
             str: primary remote url for this Repository
                 (``svn info | grep "^Repository Root:"``)
         """
+        cmd = 'svn info | grep "^Repository Root:"'
         return (
-            self.sh('svn info | grep "^Repository Root:"',
-                    shell=True).split(': ', 1)[1]).strip()
+            self.sh(cmd, shell=True).split(': ', 1)[1]).strip()
 
     def diff(self):
         """

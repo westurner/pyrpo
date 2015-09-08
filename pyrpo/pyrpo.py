@@ -21,10 +21,7 @@ from itertools import chain, imap, izip_longest
 # TODO: arrow
 from dateutil.parser import parse as parse_date
 
-try:
-    from collections import OrderedDict as Dict
-except ImportError as e:
-    Dict = dict
+import sarge
 
 # def parse_date(*args, **kwargs):
 #     print(args)
@@ -33,10 +30,27 @@ except ImportError as e:
 # logging.basicConfig()
 log = logging.getLogger('pyrpo')
 
+try:
+    from collections import OrderedDict as Dict
+except ImportError as e:
+    log.error("collections.OrderedDict not found; falling back to dict")
+    Dict = dict
+
 
 def dtformat(time):
     return time.strftime('%F %T%z')
 
+
+def shell_quote_single(cmdstr):
+    return sarge.shell_quote(cmdstr)
+
+
+def shell_quote_double(cmdstr):
+    _singlequoted = sarge.shell_quote(cmdstr)
+    if (_singlequoted[0], _singlequoted[-1]) == ("'", "'"):
+        return '"%s"' % _singlequoted[1:-1]
+    else:
+        return _singlequoted
 
 def itersplit(s, sep=None):
     """
@@ -147,19 +161,22 @@ class cached_property(object):
         return value
 
 
-# TODO: sarge
-def sh(cmd, ignore_error=False, cwd=None, *args, **kwargs):
+# TODO: sarge.run
+def sh(cmd, ignore_error=False, cwd=None, shell=False, **kwargs):
     """
     Execute a command with subprocess.Popen and block until output
 
     Args:
         cmd (tuple or str): same as subprocess.Popen args
+
+    Keyword Arguments:
         ignore_error (bool): if False, raise an Exception if p.returncode is
             not 0
-        cwd (str): path to current working directory
+        cwd (str): current working directory path to run cmd with
+        shell (bool): subprocess.Popen ``shell`` kwarg
 
     Returns:
-        str: command execution stdout
+        str: stdout output of wrapped call to ``sh`` (``subprocess.Popen``)
 
     Raises:
         Exception: if ignore_error is true and returncode is not zero
@@ -169,17 +186,15 @@ def sh(cmd, ignore_error=False, cwd=None, *args, **kwargs):
 
     """
     kwargs.update({
-        'shell': True,
+        'shell': shell,
         'cwd': cwd,
         'stderr': subprocess.STDOUT,
-        'stdout': subprocess.PIPE})
-    log.debug('cmd: %s %s' % (cmd, kwargs))
+        'stdout': subprocess.PIPE,})
+    log.debug((('cmd', cmd), ('kwargs', kwargs)))
     p = subprocess.Popen(cmd, **kwargs)
     p_stdout = p.communicate()[0]
     if p.returncode and not ignore_error:
-        raise subprocess.CalledProcessError(
-            "Subprocess return code: %d\n%r\n%r" % (
-                p.returncode, cmd, p_stdout))
+        raise subprocess.CalledProcessError(p.returncode, cmd, p_stdout)
     return p_stdout
 
 
@@ -195,7 +210,15 @@ class Repository(object):
         fsep (str): field separator / record delimiter
         lsep (str): log output record separator / delimiter
         fields (list of tuples): (colname, vcs formatter, postprocess_callable)
-        clone_cmd (str): name of commandline clone command (e.g. "clone")
+        clone_cmd (str): clone commandline part (e.g. ``clone``)
+        repo_abspath_cmd (str): repo_abspath commandline part (e.g. ``-C`` or ``-R``)
+        checkout_rev_cmd (str): checkout_rev commandline part (e.g. ``checkout -r``)
+        checkout_branch_cmd (str): clone commandline part (e.g. ``checkout``)
+        branch_cmd (str): branch commandline part (e.g. ``branch``)
+        pull_cmd (str): pull commandline part (e.g. ``pull``)
+        push_cmd (str): push commandline part (e.g. ``push``)
+        incoming_cmd (str): incoming changes commandline part (e.g. ``incoming``)
+        outgoing_cmd (str): outgoing changes commandline (e.g. ``outgoing``)
     """
     # These are defaults which can/should be redefined by subclasses
     label = None
@@ -204,15 +227,16 @@ class Repository(object):
     fsep = DEFAULT_FSEP
     lsep = DEFAULT_LSEP
     fields = []
-    clone_cmd = 'clone'
-    repo_abspath_cmd = '--repo-path'
-    checkout_rev_cmd = 'checkout -r'
-    checkout_branch_cmd = 'checkout'
-    new_branch_cmd = 'branch'  # hg, bzr, svn: branch // git: checkout -b
-    pull_cmd = 'pull'
-    push_cmd = 'push'
-    incoming_cmd = 'incoming'
-    outgoing_cmd = 'outgoing'
+    # commandline parts
+    clone_cmd = ['clone']
+    repo_abspath_cmd = ['--repo-path']
+    checkout_rev_cmd = ['checkout', '-r']
+    checkout_branch_cmd = ['checkout']
+    new_branch_cmd = ['branch']  # hg, bzr, svn: branch // git: checkout -b
+    pull_cmd = ['pull']
+    push_cmd = ['push']
+    incoming_cmd = ['incoming']
+    outgoing_cmd = ['outgoing']
 
     def __init__(self, fpath):
         """
@@ -355,7 +379,7 @@ class Repository(object):
         #   % (maxentries and ('-l%d' % maxentries) or '')),
         #   ignore_error=True
         # )
-        template = repr(template or self.template)
+        template = str(template or self.template)
         op = self.log(n=maxentries, template=template, **kwargs)
         if not op:
             return
@@ -423,9 +447,9 @@ class Repository(object):
         """
         # self.overwrite_hg_paths(output)
         if self.cfg_file:
-            yield "cat > %r << _EOF_" % self.cfg_file
+            yield "cat > %s << ____EOF____" % shell_quote_double(self.cfg_file)
             yield self.read_cfg_file()
-            yield "_EOF_"
+            yield "____EOF____"
 
     def str_report(self):
         """
@@ -459,25 +483,32 @@ class Repository(object):
         output = []
         if not self.remote_url:
             output.append('#')
-        output.extend([
-            self.label,
-            self.clone_cmd,
-            pathvar_repr(self.remote_url),  # TODO: shell quote?
-            pathvar_repr(self.relpath),
-            ';'
-        ])
+        output = output + (
+            [self.label]
+            + self.clone_cmd
+            + [pathvar_repr(self.remote_url)]  # TODO: shell quote?
+            + [pathvar_repr(self.relpath)]
+        )
         yield ''
+        yield "## %s" % pathvar_repr(self.relpath)
         yield ' '.join(output)
 
         if full:
             checkout_rev = self.current_id
             # if latest: checkout_rev = self.branch
-            checkout_branch_cmd = ' '.join((
-                self.label, self.checkout_branch_cmd, self.branch,
-                self.repo_abspath_cmd, pathvar_repr(self.relpath))) + ' ;'
-            checkout_rev_cmd = ' '.join((
-                self.label, self.checkout_rev_cmd, repr(checkout_rev),
-                self.repo_abspath_cmd, pathvar_repr(self.relpath))) + ' ;'
+
+            relpath = pathvar_repr(self.relpath) if self.relpath else None
+            relpath = relpath if relpath else ''
+            checkout_branch_cmd = (
+                [self.label]
+                + self.checkout_branch_cmd + [self.branch]
+                + self.repo_abspath_cmd
+                + [relpath])
+            checkout_rev_cmd = (
+                [self.label]
+                + self.checkout_rev_cmd + [checkout_rev]
+                + self.repo_abspath_cmd
+                + [relpath])
 
             if latest:
                 checkout_cmd = checkout_branch_cmd
@@ -486,8 +517,8 @@ class Repository(object):
                 checkout_cmd = checkout_rev_cmd
                 comment = checkout_branch_cmd
 
-            yield checkout_cmd
-            yield '### ' + comment
+            yield ' '.join(c for c in checkout_cmd if c is not None)
+            yield '### %s' % ' '.join(c for c in comment if c is not None)
             # output.extend([checkout_cmd, ';', ' ###', comment])
 
             for x in self.recreate_remotes_shellcmd():
@@ -602,8 +633,8 @@ class Repository(object):
         Returns:
             str: ``path -> link``
         """
-        cmd = ("find . -type l -printf '%p -> %l\n'")
-        return self.sh(cmd)
+        cmd = ['find', '.', '-type l', "-printf '%p -> %l\n'"]
+        return self.sh(cmd, shell=False)
 
     def lately(self, count=15):
         """
@@ -617,7 +648,7 @@ class Repository(object):
                '''| egrep -v '%s' '''
                '''| sort -n '''
                '''| tail -n %d''') % (excludes, count)
-        op = self.sh(cmd)
+        op = self.sh(cmd, shell=True)
         for l in op.split('\n'):
             l = l.strip()
             if not l:
@@ -627,20 +658,30 @@ class Repository(object):
             mtimestr = dtformat(mtime)
             yield mtimestr, fname
 
-    def sh(self, cmd, ignore_error=False, cwd=None, *args, **kwargs):
+    def sh(self, cmd, ignore_error=False, cwd=None, shell=False, **kwargs):
         """
         Run a command with the current working directory set to self.fpath
+
+        Args:
+            cmd (str or tuple): cmdstring or listlike
+
+        Keyword Arguments:
+            ignore_error (bool): if False, raise an Exception if p.returncode is
+                not 0
+            cwd (str): current working dir to run cmd with
+            shell (bool): subprocess.Popen ``shell`` kwarg
 
         Returns:
             str: stdout output of wrapped call to ``sh`` (``subprocess.Popen``)
         """
         kwargs.update({
-            'shell': True,
+            'shell': shell,
             'cwd': cwd or self.fpath,
             'stderr': subprocess.STDOUT,
-            'stdout': subprocess.PIPE})
-        log.debug('cmd: %s %s' % (cmd, kwargs))
-        return sh(cmd, ignore_error=ignore_error, **kwargs)
+            'stdout': subprocess.PIPE,
+            'ignore_error': ignore_error})
+        log.debug((('cmd', cmd), ('kwargs', kwargs)))
+        return sh(cmd, **kwargs)
 
         # p = subprocess.Popen(cmd, **kwargs)
         # p_stdout = p.communicate()[0]
@@ -700,16 +741,16 @@ class MercurialRepository(Repository):
     """
     label = 'hg'
     prefix = '.hg'
-    clone_cmd = 'clone'
-    repo_abspath_cmd = '-R'  # hg
-    checkout_rev_cmd = 'checkout -r'
-    checkout_branch_cmd = 'checkout'
-    checkout_branch_hard_cmd = 'checkout -C'
-    new_branch_cmd = 'branch'  # hg, bzr, svn?
-    pull_cmd = 'pull'
-    push_cmd = 'push'
-    incoming_cmd = 'incoming'
-    outgoing_cmd = 'outgoing'
+    clone_cmd = ['clone']
+    repo_abspath_cmd = ['-R']  # hg
+    checkout_rev_cmd = ['checkout' '-r']
+    checkout_branch_cmd = ['checkout']
+    checkout_branch_hard_cmd = ['checkout', '-C']
+    new_branch_cmd = ['branch']  # hg, bzr, svn?
+    pull_cmd = ['pull']
+    push_cmd = ['push']
+    incoming_cmd = ['incoming']
+    outgoing_cmd = ['outgoing']
 
     fields = (
         ('datestr', '{date|isodatesec}', parse_date),
@@ -750,7 +791,8 @@ class MercurialRepository(Repository):
         Returns:
             str: stdout output of ``hg status`` command
         """
-        return self.sh('hg status').rstrip()
+        cmd = ['hg', 'status']
+        return self.sh(cmd, shell=False).rstrip()
 
     @cached_property
     def remote_url(self):
@@ -761,7 +803,8 @@ class MercurialRepository(Repository):
             str: primary remote url for this Repository
                 (``hg showconfig paths.default``)
         """
-        return self.sh('hg showconfig paths.default',
+        cmd = ['hg', 'showconfig', 'paths.default']
+        return self.sh(cmd, shell=False,
                        ignore_error=True).strip()
 
     @cached_property
@@ -773,7 +816,8 @@ class MercurialRepository(Repository):
             str: primary remote url for this Repository
                 (``hg showconfig paths.default``)
         """
-        return self.sh('hg showconfig paths')
+        cmd = ['hg', 'showconfig', 'paths']
+        return self.sh(cmd, shell=False)
 
     @property
     def cfg_file(self):
@@ -818,7 +862,8 @@ class MercurialRepository(Repository):
         Returns:
             str: stdout output of ``hg diff -g``
         """
-        return self.sh('hg diff -g')
+        cmd = ['hg', 'diff' '-g']
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def current_id(self):
@@ -827,9 +872,10 @@ class MercurialRepository(Repository):
         of this Repository
 
         Returns:
-            str: revision identifier (``hg id -i``)
+            str: revision identifier (``hg -q id -i``)
         """
-        return self.sh('hg -q id -i').rstrip().rstrip('+')  # TODO
+        cmd = ['hg', '-q', 'id', '-i']
+        return self.sh(cmd, shell=False).rstrip().rstrip('+')  # TODO
 
     @cached_property
     def branch(self):
@@ -839,7 +885,8 @@ class MercurialRepository(Repository):
         Returns:
             str: branch name (``hg branch``)
         """
-        return self.sh('hg -q branch')
+        cmd = ['hg', '-q', 'branch']
+        return self.sh(cmd, shell=False)
 
     def log(self, n=None, **kwargs):
         """
@@ -848,15 +895,13 @@ class MercurialRepository(Repository):
         Returns:
             str: output of log command (``hg log -l <n> <--kwarg=value>``)
         """
-        # TODO: nested generator
-        return self.sh(' '.join((
-            'hg log',
-            ('-l%d' % n) if n else '',
-            ' '.join(
-                ('--%s=%s' % (k, v)) for (k, v) in kwargs.iteritems()
-                )
-            ))
+        cmd = ['hg', 'log']
+        if n:
+            cmd.extend('-l%d' % n)
+        cmd.extend(
+            (('--%s=%s' % (k, v)) for (k, v) in kwargs.iteritems())
         )
+        return self.sh(cmd, shell=False)
 
     def loggraph(self):
         """
@@ -865,7 +910,8 @@ class MercurialRepository(Repository):
         Returns:
             str: stdout output from ``hg log --graph``
         """
-        return self.sh('hg log --graph')
+        cmd = ['hg', 'log', '--graph']
+        return self.sh(cmd, shell=False)
 
     def unpushed(self):
         """
@@ -880,7 +926,8 @@ class MercurialRepository(Repository):
         """
         Run the ``hg serve`` command
         """
-        return self.sh('hg serve')
+        cmd = ['hg', 'serve']
+        return self.sh(cmd, shell=False)
 
     # @cached_property # TODO: once
     @staticmethod
@@ -891,7 +938,7 @@ class MercurialRepository(Repository):
         Returns:
             tuple: (scheme_name, scheme_value, compiled scheme_regex)
         """
-        output = sh("hg showconfig | grep '^schemes.'").split('\n')
+        output = sh("hg showconfig | grep '^schemes.'", shell=True).split('\n')
         log.debug(output)
         schemes = (
             l.split('.', 1)[1].split('=') for l in output if '=' in l)
@@ -987,16 +1034,16 @@ class GitRepository(Repository):
     """
     label = 'git'
     prefix = '.git'
-    clone_cmd = 'clone'
-    repo_abspath_cmd = '-C'  # git
-    checkout_rev_cmd = 'checkout -r'
-    checkout_branch_cmd = 'checkout'
-    checkout_branch_hard_cmd = 'checkout -C'
-    new_branch_cmd = 'checkout -b'  # git
-    pull_cmd = 'pull'
-    push_cmd = 'push'
-    incoming_cmd = 'incoming'
-    outgoing_cmd = 'outgoing'
+    clone_cmd = ['clone']
+    repo_abspath_cmd = ['-C']  # git
+    checkout_rev_cmd = ['checkout', '-r']
+    checkout_branch_cmd = ['checkout']
+    checkout_branch_hard_cmd = ['checkout', '-C']
+    new_branch_cmd = ['checkout', '-b']  # git
+    pull_cmd = ['pull']
+    push_cmd = ['push']
+    incoming_cmd = ['incoming']
+    outgoing_cmd = ['outgoing']
 
     fields = (
         ('datestr', '%ai', None, parse_date),
@@ -1028,10 +1075,11 @@ class GitRepository(Repository):
         Returns:
             str: stdout output of ``hg status`` command
         """
-        return self.sh('git status -s')
+        cmd = ['git', 'status', '-s']
+        return self.sh(cmd, shell=False)
 
     @cached_property
-    def remote_url(self):
+    def remote_url(self, remotename='origin'):
         """
         Determine the primary remote url for this Repository
 
@@ -1039,7 +1087,8 @@ class GitRepository(Repository):
             str: primary remote url for this Repository
                 (``git config remote.origin.url``)
         """
-        return self.sh('git config remote.origin.url',
+        cmd = ['git', 'config', 'remote.%s.url' % remotename]
+        return self.sh(cmd, shell=False,
                        ignore_error=True).strip()  # .split('=',1)[1]# *
 
     @cached_property
@@ -1052,11 +1101,28 @@ class GitRepository(Repository):
                 (``git config -l | grep "url"``)
         """
         return self.sh('git config -l | grep "url"',
+                       shell=True,
                        ignore_error=True).strip()  # .split('=',1)[1]# *
 
     @cached_property
     def current_id(self):
-        return self.sh('git rev-parse --short HEAD').rstrip()
+        """
+        Determine the current revision identifier for the working directory
+        of this Repository
+
+        Returns:
+            str: git HEAD revision identifier
+                (``git rev-parse --short HEAD``)
+        """
+        try:
+            cmd = ['git', 'rev-parse', '--short', 'HEAD']
+            return self.sh(cmd,
+                        shell=False,
+                        ignore_error=True).rstrip()
+        except subprocess.CalledProcessError as e:
+            log.exception(e)
+            #if e.returncode == 128  # bare repo
+            return None
 
     def diff(self):
         """
@@ -1065,7 +1131,8 @@ class GitRepository(Repository):
         Returns:
             str: stdout output of ``git diff``
         """
-        return self.sh('git diff')
+        cmd = ['git', 'diff']
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def branch(self):
@@ -1073,10 +1140,19 @@ class GitRepository(Repository):
         Determine the branch name of the working directory of this Repository
 
         Returns:
-            str: branch name (``git branch``)
+            str: branch name (``git symbolic-ref --short HEAD``)
         """
-        # return self.sh('git branch')  # parse for '*'
-        return self.sh('git symbolic-ref --short HEAD').rstrip()
+        # return self.sh(['git, 'branch'], shell=False)  # parse for '*'
+        cmd = ['git', 'symbolic-ref', '--short', 'HEAD']
+        try:
+            output = self.sh(cmd, shell=False, ignore_error=True).rstrip()
+        except subprocess.CalledProcessError as e:
+            log.exception(e)
+            return  "#err# %s" % output
+            #if e.returncode == 128  # bare repo
+        if output.startswith('fatal: ref HEAD is not a symbolic ref'):
+            output = '# %s' % output
+        return output
 
     def log(self, n=None, **kwargs):
         """
@@ -1085,16 +1161,15 @@ class GitRepository(Repository):
         Returns:
             str: output of log command (``git log -n <n> <--kwarg=value>``)
         """
-        kwargs['format'] = kwargs.pop('template')
-        cmd = ' '.join((
-            'git log',
-            ('-n%d' % n) if n else '',
-            ' '.join(
-                ('--%s=%s' % (k, v)) for (k, v) in kwargs.iteritems()
-            )
-        ))
+        kwargs['format'] = kwargs.pop('template', self.template)
+        cmd = ['git', 'log']
+        if n:
+            cmd.append('-n%d' % n)
+        cmd.extend(
+            (('--%s=%s' % (k, v))
+             for (k, v) in kwargs.iteritems()))
         try:
-            output = self.sh(cmd)
+            output = self.sh(cmd, shell=False)
             if "fatal: bad default revision 'HEAD'" in output:
                 return output
             return output
@@ -1109,7 +1184,8 @@ class GitRepository(Repository):
         Returns:
             str: stdout output from ``git log --graph``
         """
-        return self.sh('git log --graph')
+        cmd = ['git', 'log', '--graph']
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def last_commit(self):
@@ -1147,32 +1223,43 @@ class GitRepository(Repository):
             str: stdout output from
                 ``git log master --not --remotes='*/master'``.
         """
-        return self.sh("git log master --not --remotes='*/master'")
+        cmd = ['git', 'log', 'master', '--not', "--remotes='*/master'"]
+        return self.sh(cmd, shell=False)
 
     def serve(self):
         """
         Run the ``git serve`` command
         """
-        return self.sh("git serve")
+        cmd = ['git', 'serve']
+        return self.sh(cmd, shell=False)
 
     @property
     def cfg_file(self):
+        """
+        Return the configuration file for the given repo path
+        """
         default_path = os.path.join(self.relpath, '.git', 'config')
         if os.path.exists(default_path):
             return default_path
 
-        gitdir = os.path.join(self.relpath, '.git')
+        dotgitpath = os.path.join(self.relpath, '.git')
         cfg_path = None
         # with git submodules, .git is a file containing "gitdir: .../../path"
-        if os.path.isfile(gitdir):
-            with codecs.open(gitdir, 'r', encoding='utf8') as f:
+        if os.path.isfile(dotgitpath):
+            with codecs.open(dotgitpath, 'r', encoding='utf8') as f:
                 for _line in f:
                     l = _line.strip()
                     if l.startswith('gitdir:'):
+                        # gitdir: ../.git/modules/modname
                         cfg_path_relative = l.split('gitdir:', 1)[-1].strip()
-                        cfg_path = os.path.abspath(
-                            os.path.join(gitdir, cfg_path_relative, 'config'))
-                        # TODO: absolute/relative path
+                        cfg_path_absolute = os.path.abspath(
+                            os.path.join(
+                                os.path.dirname(dotgitpath),
+                                cfg_path_relative,
+                                'config'))
+                        cfg_path = cfg_path_absolute
+                        log.debug(('cfg_path_absolute', cfg_path_absolute))
+                        #raise Exception(cfg_path_absolute) #_absolute)
                         break
         return cfg_path
 
@@ -1215,7 +1302,7 @@ class BzrRepository(Repository):
     }
     logrgx = re.compile(
         r'^(revno|tags|committer|branch\snick|timestamp|message):\s?(.*)\n?')
-    clone_cmd = 'branch'
+    clone_cmd = ['branch']
 
     @property
     def unique_id(self):
@@ -1235,7 +1322,8 @@ class BzrRepository(Repository):
         Returns:
             str: stdout output of ``bzr status`` command
         """
-        return self.sh('bzr status')
+        cmd = ['bzr', 'status']
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def remote_url(self):
@@ -1248,6 +1336,7 @@ class BzrRepository(Repository):
         """
         return self.sh(
             """bzr info  | egrep '^  parent branch:' | awk '{ print $3 }'""",
+            shell=True,
             ignore_error=True)
 
     def diff(self):
@@ -1257,7 +1346,8 @@ class BzrRepository(Repository):
         Returns:
             str: stdout output of ``bzr diff``
         """
-        return self.sh('bzr diff')
+        cmd = ['bzr', 'diff']
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def current_id(self):
@@ -1269,7 +1359,8 @@ class BzrRepository(Repository):
             str: bazaar revision identifier
                 (``bzr version-info --custom --template='{revision_id}'``)
         """
-        return self.sh("bzr version-info --custom --template='{revision_id}'")
+        cmd = ['bzr', 'version-info', '--custom', "--template='{revision_id}'"]
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def branch(self):
@@ -1279,7 +1370,8 @@ class BzrRepository(Repository):
         Returns:
             str: branch nick (``bzr nick``)
         """
-        return self.sh('bzr nick')
+        cmd = ['bzr', 'nick']
+        return self.sh(cmd, shell=False)
 
     def log(self, n=None, template=None):
         """
@@ -1288,9 +1380,10 @@ class BzrRepository(Repository):
         Returns:
             str: output of log command (``bzr log -l <n>``)
         """
-        return self.sh(' '.join((
-            'bzr log',
-            '-l%d' % n if n else '')))
+        cmd = ['bzr', 'log']
+        if n:
+            cmd.append('-l%d' % n)
+        return self.sh(cmd, shell=False)
 
     # @cached_property
     # def last_commit(self):
@@ -1435,6 +1528,7 @@ class SvnRepository(Repository):
             str: Repository UUID of this repository
         """
         cmdo = self.sh('svn info | grep "^Repository UUID"',
+                       shell=True,
                        ignore_error=True)
         if cmdo:
             return cmdo.split(': ', 1)[1].rstrip()
@@ -1448,7 +1542,8 @@ class SvnRepository(Repository):
         Returns:
             str: stdout output of ``svn status`` command
         """
-        return self.sh('svn status')
+        cmd = ['svn', 'status']
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def remote_url(self):
@@ -1460,8 +1555,8 @@ class SvnRepository(Repository):
                 (``svn info | grep "^Repository Root:"``)
         """
         return (
-            self.sh('svn info | grep "^Repository Root:"')
-                .split(': ', 1)[1]).strip()
+            self.sh('svn info | grep "^Repository Root:"',
+                    shell=True).split(': ', 1)[1]).strip()
 
     def diff(self):
         """
@@ -1470,7 +1565,8 @@ class SvnRepository(Repository):
         Returns:
             str: stdout output of ``svn diff``
         """
-        return self.sh('svn diff')
+        cmd = ['svn', 'diff']
+        return self.sh(cmd, shell=False)
 
     def current_id(self):
         """
@@ -1485,7 +1581,8 @@ class SvnRepository(Repository):
         # info = ET.fromstringlist(self.sh('svn info --xml'))
         # return info.find('entry').get('revision')
         return (
-            self.sh('svn info | grep "^Revision: "')
+            self.sh('svn info | grep "^Revision: "',
+                    shell=True)
             .split(': ', 1)[1].strip())
 
     def log(self, n=None, template=None, **kwargs):
@@ -1495,14 +1592,13 @@ class SvnRepository(Repository):
         Returns:
             str: output of log command (``svn log -l <n> <--kwarg=value>``)
         """
-        return (
-            self.sh(' '.join((
-                'svn log',
-                ('-l%n' % n) if n else '',
-                ' '.join(('--%s=%s' % (k, v)) for (k, v) in kwargs.items())
-                ))
-            )
+        cmd = ['svn', 'log']
+        if n:
+            cmd.append('-l%d' % n)
+        cmd.extend(
+            (('--%s=%s' % (k, v)) for (k, v) in kwargs.items())
         )
+        return self.sh(cmd, shell=False)
 
     @cached_property
     def _last_commit(self):
@@ -1522,7 +1618,8 @@ added selection range traits to make it possible for users to replace
 
         .. note:: svn log references the svn server
         """
-        op = self.sh('svn log -l1')
+        cmd = ['svn', 'log' '-l1']
+        op = self.sh(cmd, shell=False)
         data, rest = op.split('\n', 2)[1:]
         revno, user, datestr, lc = data.split(' | ', 3)
         desc = '\n'.join(rest.split('\n')[1:-2])
@@ -1550,7 +1647,8 @@ added selection range traits to make it possible for users to replace
         Last Changed Rev: 378
         Last Changed Date: 2011-05-01 01:31:38 -0500 (Sun, 01 May 2011)
         """
-        op = self.sh("svn info")
+        cmd = ['svn', 'info']
+        op = self.sh(cmd, shell=False)
         if not op:
             return None
         author, rev, datestr = op.split('\n')[7:10]
@@ -1685,7 +1783,7 @@ def find_find_repos(where, ignore_error=True):
     Yields:
         Repository subclass instance
     """
-    print(REPO_REGEX)
+    log.debug(('REPO_REGEX', REPO_REGEX))
     FIND_REPO_REGEXCMD = " -regex '.*(%s)$'" % REPO_REGEX
     if os.uname()[0] == 'Darwin':
         cmd = ("find",

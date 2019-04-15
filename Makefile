@@ -28,10 +28,11 @@ lint:
 	flake8 pyrpo tests
 
 test:
-	python setup.py test
-	nosetests ./pyrpo/pyrpo.py
+	pytest -v ./tests/
 
-test-all:
+test-all: tox
+
+tox:
 	tox
 
 coverage:

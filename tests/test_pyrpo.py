@@ -1,7 +1,58 @@
 
+import os
 import unittest
 
-from pyrpo.pyrpo import itersplit, BzrRepository
+from pyrpo.pyrpo import main, itersplit, BzrRepository
+
+THISDIR = os.path.join(os.path.dirname(__file__))
+REPODIR = os.path.join(THISDIR, '../..')
+
+class TestPyrpoCLI(unittest.TestCase):
+    def test_cli_main(self):
+        with self.assertRaises(SystemExit):
+            main(['-h'])
+
+    def test_cli_scan(self):
+        retcode = main(['-s', REPODIR])
+
+    def test_cli_scan_multiple(self):
+        retcode = main(['-s', REPODIR, '-s', REPODIR])
+
+    def test_cli_scan_report_origin(self):
+        retcode = main(['-s', REPODIR, '-r', 'origin'])
+
+    def test_cli_scan_report_status(self):
+        retcode = main(['-s', REPODIR, '-r', 'status'])
+
+    def test_cli_scan_report_status_verbose(self):
+        retcode = main(['-s', REPODIR, '-r', 'status', '-v'])
+
+    def test_cli_scan_report_status_quiet(self):
+        retcode = main(['-s', REPODIR, '-r', 'status', '-q'])
+
+    def test_cli_scan_report_full(self):
+        retcode = main(['-s', REPODIR, '-r', 'full'])
+
+    def test_cli_scan_report_gitmodule(self):
+        retcode = main(['-s', REPODIR, '-r', 'gitmodule'])
+
+    def test_cli_scan_report_json(self):
+        retcode = main(['-s', REPODIR, '-r', 'json'])
+
+    def test_cli_scan_report_sh(self):
+        retcode = main(['-s', REPODIR, '-r', 'sh'])
+
+    def test_cli_scan_report_str(self):
+        retcode = main(['-s', REPODIR, '-r', 'str'])
+
+    def test_cli_scan_report_pip(self):
+        retcode = main(['-s', REPODIR, '-r', 'pip'])
+
+    def test_cli_scan_report_hgsub(self):
+        retcode = main(['-s', REPODIR, '-r', 'hgsub'])
+
+    def test_cli_scan_report_thg(self):
+        retcode = main(['-s', REPODIR, '--thg'])
 
 # class TestThese(unittest.TestCase):
 #   def test_00_files(self):

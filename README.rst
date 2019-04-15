@@ -4,8 +4,7 @@ pyrpo
 
 
 `GitHub`_ |
-`PyPi`_ |
-`Warehouse`_ |
+`PyPI`_ |
 `Documentation`_ |
 `Travis-CI`_
 
@@ -27,7 +26,7 @@ pyrpo
 
 
 .. _GitHub: https://github.com/westurner/pyrpo
-.. _PyPi: https://pypi.python.org/pypi/pyrpo
+.. _PyPI: https://pypi.org/project/pyrpo
 .. _Warehouse: https://warehouse.python.org/project/pyrpo
 .. _Documentation:  https://pyrpo.readthedocs.org/en/latest
 .. _Travis-CI:  https://travis-ci.org/westurner/pyrpo

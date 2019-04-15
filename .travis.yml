@@ -2,11 +2,12 @@
 
 language: python
 
-python:
-#  - "3.3"
-  - "2.7"
-  - "3.7"
-  - "pypy"
+matrix:
+  include:
+    - python: 2.7
+    - python: pypy
+    - python: 3.7
+      dist: xenial
 
 # command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
 install: pip install pytest -r requirements.txt

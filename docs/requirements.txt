@@ -2,7 +2,7 @@ sphinx
 sphinxcontrib-napoleon
 sphinx_rtd_theme
 
-sphinxcontrib-ansi
+#sphinxcontrib-ansi
 # src:
 #   - hg+https://bitbucket.org/birkenfeld/sphinx-contrib
 

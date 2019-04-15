@@ -45,9 +45,7 @@ class PyTestCommand(Command):
         pass
 
     def run(self):
-        cmd = [sys.executable,
-               os.path.join(SETUPPY_PATH, 'runtests.py'),
-               '-v']
+        cmd = ['pytest', '-v']
 
         globstr = os.path.join(SETUPPY_PATH, 'tests/test_*.py')
         cmd.extend(glob.glob(globstr))

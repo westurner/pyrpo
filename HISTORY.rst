@@ -3,6 +3,16 @@
 History
 =========
 
+release/0.2.3 (2020-10-02 21:36:25 -0400)
++++++++++++++++++++++++++++++++++++++++++
+::
+
+   git log --reverse --pretty=format:'* %s [%h]' v0.2.2..release/0.2.3
+
+* BLD: setup.py: add sarge to install_requires \[2e38b51\]
+* RLS: __init__,setup.py: v0.2.3, add 3.8 trove classifier \[e35e91f\]
+
+
 0.2.2 (2019-04-15)
 +++++++++++++++++++
 * Python 3.7 Support

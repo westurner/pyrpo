@@ -81,7 +81,10 @@ dist: clean
 	python setup.py bdist_wheel
 	ls -l dist
 
-twine:
+dist-check:
+	twine check ./dist/*
+
+twine: dist-check
 	twine upload ./dist/*
 
 docs_rsync_to_local:

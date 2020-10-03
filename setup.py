@@ -76,7 +76,7 @@ install_requires = [
 
 setup(
     name='pyrpo',
-    version='0.2.2',
+    version='0.2.3',
     description=(
         'A shell command wrapper for hg, git, bzr, svn'),
     long_description=build_long_description(),
@@ -103,6 +103,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     entry_points={
         'console_scripts': [

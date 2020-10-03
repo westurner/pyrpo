@@ -70,6 +70,7 @@ def build_long_description():
 
 install_requires = [
     'python-dateutil',
+    'sarge',
 ]
 
 

@@ -41,9 +41,23 @@ else:
         return d.items()
 
 # TODO: arrow
-from dateutil.parser import parse as parse_date
+try:
+    from dateutil.parser import parse as parse_date
+except ImportError as e:
+    parse_date = None
 
-import sarge
+try:
+    import sarge
+except ImportError as e:
+    sarge = None
+
+try:
+    import pytest
+except ImportError:
+    pytest = None
+
+if pytest and getattr(pytest, "skip", None) and (parse_date is None or sarge is None):
+    pytest.skip("dateutil or sarge not available", allow_module_level=True)
 
 # def parse_date(*args, **kwargs):
 #     print(args)
@@ -188,7 +202,7 @@ class cached_property(object):
 
 
 # TODO: sarge.run
-def sh(cmd, ignore_error=False, cwd=None, shell=False, **kwargs):
+def sh(cmd, ignore_error=False, cwd=None, shell=False, env=None, **kwargs):
     """
     Execute a command with subprocess.Popen and block until output
 
@@ -214,8 +228,10 @@ def sh(cmd, ignore_error=False, cwd=None, shell=False, **kwargs):
     kwargs.update({
         'shell': shell,
         'cwd': cwd,
+        'env': env,
         'stderr': subprocess.STDOUT,
-        'stdout': subprocess.PIPE,})
+        'stdout': subprocess.PIPE,
+    })
     log.debug((('cmd', cmd), ('kwargs', kwargs)))
     p = subprocess.Popen(cmd, universal_newlines=True, **kwargs)
     p_stdout = p.communicate()[0]
@@ -427,6 +443,15 @@ class Repository(object):
     #     metadata """
     #     pass
 
+    def path_report(self):
+        """
+        Show just the file path of the repo
+
+        Yields:
+            str: file path
+        """
+        yield self.fpath
+
     def full_report(self):
         """
         Show origin, last_commit, status, and parsed complete log history
@@ -592,6 +617,18 @@ class Repository(object):
         yield self.last_commit
         yield self.status
         yield ""
+
+    def unpushed_report(self):
+        already_yielded_title = False
+        if os.environ.get('__quiet__') != "1":
+            yield '# %s' % self.fpath
+            already_yielded_title = True
+        unpushed = self.unpushed()
+        if unpushed:
+            if not already_yielded_title:
+                yield '# %s' % self.fpath
+            yield unpushed
+
 
     def hgsub_report(self):
         """
@@ -1252,7 +1289,7 @@ class GitRepository(Repository):
             str: stdout output from
                 ``git log master --not --remotes='*/master'``.
         """
-        cmd = ['git', 'log', 'master', '--not', "--remotes='*/master'"]
+        cmd = ['git', 'log', '--branches', '--not', "--remotes", "--decorate"]
         return self.sh(cmd, shell=False)
 
     def serve(self):
@@ -1888,6 +1925,7 @@ def find_unique_repos(where):
 # dict map between report names and report functions
 REPORT_TYPES = dict(
     (attr, getattr(Repository, "%s_report" % attr)) for attr in (
+        "path",
         "str",
         "json",
         "sh",  # default
@@ -1896,6 +1934,7 @@ REPORT_TYPES = dict(
         "full",
         "pip",
         "status",
+        "unpushed",
         "hgsub",
         "gitmodule",
     )
@@ -2004,7 +2043,7 @@ def get_option_parser():
                    dest='reports',
                    action='append',
                    default=[],
-                   help=("""origin, status, full, gitmodule, json, sh, """
+                   help=("""path, origin, status, unpushed, full, gitmodule, json, sh, """
                          """str, pip, hgsub"""))
     prs.add_option('--thg',
                    dest='thg_report',
@@ -2015,6 +2054,14 @@ def get_option_parser():
                    dest='report_template',
                    action='store',
                    help='Report template')
+
+    prs.add_option('--color', '--colors',
+                   dest='colors',
+                   default=True,
+                   action='store_true')
+    prs.add_option('--no-color', '--no-colors',
+                   dest='colors',
+                   action='store_false')
 
     prs.add_option('-v', '--verbose',
                    dest='verbose',
@@ -2056,6 +2103,14 @@ def main(argv=None):
         log.setLevel(logging.INFO)
     if not opts.scan:
         opts.scan = ['.']
+
+    if opts.colors:
+        os.environ['GIT_CONFIG_PARAMETERS'] = "'color.ui=always'"
+    elif opts.colors is False:
+        os.environ['GIT_CONFIG_PARAMETERS'] = "'color.ui=never'"
+
+    if opts.quiet:
+        os.environ['__quiet__'] = "1"
 
     if opts.scan:
         # if not opts.reports:
